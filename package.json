@@ -27,7 +27,7 @@
     "start": "node server.js",
     "dev": "node --watch-path=src --watch-path=server.js server.js",
     "build-data": "node scripts/build-data.js",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"

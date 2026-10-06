@@ -1,0 +1,41 @@
+{
+  "name": "launch-day",
+  "version": "1.0.0",
+  "description": "A release calendar for upcoming PC and console games, built from Wikipedia release lists and enriched with Steam store data.",
+  "keywords": [
+    "games",
+    "video-games",
+    "release-calendar",
+    "game-releases",
+    "steam",
+    "wikipedia",
+    "calendar",
+    "upcoming-games"
+  ],
+  "homepage": "https://github.com/triston-dev/launch-day#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/triston-dev/launch-day.git"
+  },
+  "bugs": {
+    "url": "https://github.com/triston-dev/launch-day/issues"
+  },
+  "author": "triston-dev",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch-path=src --watch-path=server.js server.js",
+    "build-data": "node scripts/build-data.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "hls.js": "^1.7.3"
+  }
+}

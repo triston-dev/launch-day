@@ -121,7 +121,7 @@ export function metaLine(game) {
 }
 
 // The main release card used in lists and grids.
-export function card(game, { watched, today, owned, showDate = true } = {}) {
+export function card(game, { watched, today, owned, wishlisted, showDate = true } = {}) {
   const desc = game.summary || game.blurb || '';
   const cd = countdown(game, today);
   return `<article class="card ${watched ? 'is-watched' : ''}" data-game="${esc(game.id)}" tabindex="0">
@@ -132,7 +132,7 @@ export function card(game, { watched, today, owned, showDate = true } = {}) {
       ${mediaTags(game, today)}
     </div>
     <div class="card-body">
-      <div class="card-flags">${ownedFlag(owned)}${changeBadge(game)}${newBadge(game)}${game.region ? `<span class="flag flag--region">${esc(game.region)}</span>` : ''}</div>
+      <div class="card-flags">${ownedFlag(owned)}${wishlisted && !owned ? '<span class="flag flag--wishlist">Wishlisted</span>' : ''}${changeBadge(game)}${newBadge(game)}${game.region ? `<span class="flag flag--region">${esc(game.region)}</span>` : ''}</div>
       <h3 class="card-title">${esc(game.title)}</h3>
       <div class="card-meta">${metaLine(game)}</div>
       ${desc ? `<p class="card-desc">${esc(desc)}</p>` : ''}

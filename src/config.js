@@ -3,6 +3,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// Settings can live in a .env file next to package.json (see .env.example).
+try {
+  process.loadEnvFile(path.join(root, '.env'));
+} catch {
+  /* no .env file, or a Node version without loadEnvFile: use the real environment */
+}
+
 export const config = {
   root,
   publicDir: path.join(root, 'public'),
@@ -19,9 +26,14 @@ export const config = {
   // Store region used for Steam prices and search results.
   country: (process.env.STORE_COUNTRY || 'US').toUpperCase(),
 
-  // Optional Steam Web API key (free at https://steamcommunity.com/dev/apikey).
-  // Only used to import your own Steam library so owned games are marked.
+  // Steam Web API key (free at https://steamcommunity.com/dev/apikey). With
+  // it, "Sign in through Steam" can read the signed-in account's library,
+  // the same way SteamDB does. Without it, sign-in still imports the wishlist.
   steamApiKey: process.env.STEAM_API_KEY || '',
+
+  // The address people reach this server at, if it is not plain
+  // http://<host header> (for example behind HTTPS). Used for Steam sign-in.
+  publicUrl: process.env.PUBLIC_URL || '',
 
   // Wikimedia asks API clients to identify themselves.
   userAgent:

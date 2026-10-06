@@ -1739,6 +1739,132 @@ a.review:hover {
   margin-top: 18px;
 }
 
+/* ------------------------------------------------------------------ steam account */
+
+.account {
+  display: flex;
+  flex: none;
+}
+
+.btn--steam {
+  height: 38px;
+  background: #1b2838;
+  border-color: #2a475e;
+  color: #fff;
+}
+
+.btn--steam:hover {
+  background: #2a475e;
+}
+
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-chip:hover {
+  border-color: var(--text-3);
+}
+
+.account-chip img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.account-chip span {
+  max-width: 140px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.account-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 14px;
+}
+
+.account-head img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+}
+
+.account-head b {
+  display: block;
+  font-size: 16px;
+}
+
+.account-head span {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.account-stat {
+  display: flex;
+  gap: 11px;
+  margin: 0 0 10px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+
+.account-stat > .icon {
+  margin-top: 2px;
+  color: var(--owned);
+}
+
+.account-stat b {
+  color: var(--text);
+}
+
+.account-stat a {
+  color: var(--text);
+}
+
+.account-action {
+  display: flex;
+  width: max-content;
+  margin-top: 9px;
+}
+
+.dialog-actions {
+  flex-wrap: wrap;
+}
+
+.flag--wishlist {
+  background: color-mix(in srgb, var(--store-steam) 15%, transparent);
+  color: var(--store-steam);
+}
+
+@media (max-width: 720px) {
+  .btn--steam span,
+  .account-chip span {
+    display: none;
+  }
+
+  .btn--steam {
+    width: 38px;
+    padding: 0;
+  }
+
+  .account-chip {
+    padding: 0 4px;
+  }
+}
+
 /* ------------------------------------------------------------------ rows */
 
 .rows {

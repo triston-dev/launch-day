@@ -125,9 +125,6 @@ function renderFilters() {
         ${toggle('includeAsia', 'Include Asia-only releases', 'Show releases limited to Japan, China or Korea')}
         ${toggle('hideOwned', 'Hide games I own', 'Hide games you have marked as owned or imported from Steam')}
         <span class="filter-spacer"></span>
-        <button class="btn btn--small" data-action="steam-library" title="Mark the games you own on Steam">
-          ${icon('library', { size: 14 })} ${model.steamLibrary ? `Steam library <span class="n">${model.steamLibrary.appids.length.toLocaleString()}</span>` : 'Import Steam library'}
-        </button>
         <button class="chip chip--watch ${f.watchlistOnly ? 'is-on' : ''}" data-action="watchlist-only" aria-pressed="${f.watchlistOnly}">
           ${icon('star', { size: 14, filled: f.watchlistOnly })} Watchlist <span class="n">${watchCount}</span>
         </button>
@@ -220,6 +217,7 @@ function renderLoading(message) {
 
 function renderAll() {
   state.ready = true;
+  renderAccount();
   renderViewSwitch();
   renderFilters();
   renderMain();
@@ -387,40 +385,79 @@ function patchDetailOwnership(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Steam library import
+// Sign in through Steam
 
-function openLibraryDialog() {
-  const lib = model.steamLibrary;
-  const enabled = Boolean(state.status?.steamImport);
+function renderAccount() {
+  const acct = model.steamAccount;
+  const el = $('#account');
+  if (!acct) {
+    el.innerHTML = `<a class="btn btn--steam" href="/auth/steam" title="Sign in through Steam to mark the games you own">${icon('user', { size: 16 })}<span>Sign in with Steam</span></a>`;
+    return;
+  }
+  el.innerHTML = `<button class="account-chip" data-action="account" title="Signed in as ${esc(acct.name || acct.steamid)}">
+    ${acct.avatar ? `<img src="${esc(acct.avatar)}" alt="" referrerpolicy="no-referrer">` : icon('user', { size: 16 })}
+    <span>${esc(acct.name || 'Steam')}</span>
+  </button>`;
+}
+
+const OWNED_PROBLEMS = {
+  'no-key':
+    'Steam only shares which games you own with servers that have a Steam Web API key, the same way SteamDB reads libraries. Add <code>STEAM_API_KEY</code> to this server’s <code>.env</code> file (free at <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer">steamcommunity.com/dev/apikey</a>), restart it, and sync again.',
+  private:
+    'Your Steam “Game details” are private, so Steam would not share your library. Set them to Public in <a href="https://steamcommunity.com/my/edit/settings" target="_blank" rel="noopener noreferrer">Steam’s privacy settings</a>, then sync again.',
+  'bad-key': 'Steam rejected this server’s API key. Check <code>STEAM_API_KEY</code> in the <code>.env</code> file.',
+  unavailable: 'Steam did not answer when we asked for your library. Sync again in a minute.',
+};
+
+const ofThem = (n) => (n === 0 ? 'None of them are' : n === 1 ? '1 of them is' : `${n.toLocaleString()} of them are`);
+
+function openAccountDialog({ error } = {}) {
+  const acct = model.steamAccount;
+  const onCalendar = (set) => model.games.filter((g) => g.steam && set.has(g.steam.appid));
+  const ownedHere = acct?.appids ? onCalendar(model.steamOwned).length : 0;
+  const wished = acct ? onCalendar(model.steamWishlist) : [];
+  const unwatched = wished.filter((g) => !model.isWatched(g.id));
+
+  let body;
+  if (!acct) {
+    body = `<p>${error ? `<span class="dialog-error">${esc(error)}</span>` : 'Sign in through Steam to mark the games you own and bring in your wishlist.'}</p>`;
+  } else {
+    body = `
+      <div class="account-head">
+        ${acct.avatar ? `<img src="${esc(acct.avatar)}" alt="" referrerpolicy="no-referrer">` : ''}
+        <div><b>${esc(acct.name || acct.steamid)}</b><span>Signed in through Steam · synced ${esc(timeAgo(acct.syncedAt))}</span></div>
+      </div>
+      ${error ? `<p class="dialog-error">${esc(error)}</p>` : ''}
+      <div class="account-stat">
+        ${icon('check', { size: 16 })}
+        <div>${
+          acct.appids
+            ? `<b>${acct.appids.length.toLocaleString()} games in your library.</b> ${ofThem(ownedHere)} on this calendar${ownedHere ? ' and marked “Owned on Steam”' : ''}.`
+            : `<b>Library not loaded.</b> ${OWNED_PROBLEMS[acct.ownedReason] || OWNED_PROBLEMS.unavailable}`
+        }</div>
+      </div>
+      <div class="account-stat">
+        ${icon('star', { size: 16 })}
+        <div><b>${acct.wishlist.length.toLocaleString()} games on your wishlist.</b> ${ofThem(wished.length)} on this calendar${
+          unwatched.length ? `, ${unwatched.length} not on your watchlist yet.` : wished.length ? ', all on your watchlist.' : '.'
+        }${
+          unwatched.length
+            ? `<button type="button" class="btn btn--small account-action" data-dialog="watch-wishlist">${icon('star', { size: 14 })} Watch ${unwatched.length === 1 ? 'it' : `all ${unwatched.length}`}</button>`
+            : ''
+        }</div>
+      </div>`;
+  }
+
   const dialog = document.createElement('dialog');
   dialog.className = 'dialog';
   dialog.innerHTML = `<form class="dialog-body" method="dialog">
-    <h2>${icon('library', { size: 20 })} Steam library</h2>
-    <p>${
-      lib
-        ? `${lib.appids.length.toLocaleString()} games imported ${esc(timeAgo(lib.importedAt))}. Anything you own there is marked “Owned on Steam”.`
-        : 'Import your Steam library and every game you own there is marked “Owned on Steam”.'
-    }</p>
-    ${
-      enabled
-        ? `<label class="field">
-            <span>Steam profile link or SteamID</span>
-            <input name="profile" required autocomplete="off" spellcheck="false" placeholder="https://steamcommunity.com/id/yourname" value="${esc(storage.get('launchday.steamProfile', ''))}">
-          </label>
-          <p class="muted">Your profile’s “Game details” must be set to Public in Steam’s privacy settings.</p>
-          <p class="dialog-error" hidden></p>`
-        : `<p>Steam only shares libraries through its Web API, which needs a free key:</p>
-          <ol>
-            <li>Get one at <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer">steamcommunity.com/dev/apikey</a>.</li>
-            <li>Set it as the <code>STEAM_API_KEY</code> environment variable and restart the server (the README shows how).</li>
-          </ol>
-          <p class="muted">Without it, mark games as owned from any game’s page with “I own this”.</p>`
-    }
+    <h2>${icon('user', { size: 20 })} Steam account</h2>
+    ${body}
     <div class="dialog-actions">
-      ${lib ? '<button type="button" class="btn btn--ghost" data-dialog="forget">Forget library</button>' : ''}
+      ${acct ? '<button type="button" class="btn btn--ghost" data-dialog="signout">Sign out</button>' : ''}
       <span class="filter-spacer"></span>
-      <button type="button" class="btn" data-dialog="close">${enabled ? 'Cancel' : 'Close'}</button>
-      ${enabled ? `<button type="submit" class="btn btn--primary">${lib ? 'Re-import' : 'Import'}</button>` : ''}
+      <a class="btn ${acct ? '' : 'btn--steam'}" href="/auth/steam">${icon('refresh', { size: 15 })} ${acct ? 'Sync' : 'Sign in with Steam'}</a>
+      <button type="button" class="btn btn--primary" data-dialog="close">Done</button>
     </div>
   </form>`;
   document.body.append(dialog);
@@ -428,37 +465,39 @@ function openLibraryDialog() {
   dialog.addEventListener('click', (e) => {
     const action = e.target.closest('[data-dialog]')?.dataset.dialog;
     if (action === 'close' || e.target === dialog) dialog.close();
-    if (action === 'forget') {
-      model.setSteamLibrary(null);
-      toast('Steam library forgotten');
+    if (action === 'signout') {
+      model.setSteamAccount(null);
+      toast('Signed out of Steam');
       dialog.close();
     }
-  });
-  dialog.querySelector('form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const input = dialog.querySelector('input[name="profile"]');
-    const error = dialog.querySelector('.dialog-error');
-    const submit = dialog.querySelector('button[type="submit"]');
-    submit.disabled = true;
-    submit.textContent = 'Importing…';
-    error.hidden = true;
-    try {
-      const res = await fetch(`/api/steam-library?profile=${encodeURIComponent(input.value.trim())}`);
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Import failed.');
-      storage.set('launchday.steamProfile', input.value.trim());
-      model.setSteamLibrary(body);
-      const matched = model.games.filter((g) => g.steam && model.steamOwned.has(g.steam.appid)).length;
-      toast(`Imported ${body.appids.length.toLocaleString()} games; ${matched} on the calendar`);
+    if (action === 'watch-wishlist') {
+      model.addToWatchlist(unwatched.map((g) => g.id));
+      toast(`Added ${unwatched.length} wishlisted game${unwatched.length === 1 ? '' : 's'} to your watchlist`);
       dialog.close();
-    } catch (err) {
-      error.textContent = err.message;
-      error.hidden = false;
-      submit.disabled = false;
-      submit.textContent = lib ? 'Re-import' : 'Import';
     }
   });
   dialog.showModal();
+}
+
+// Steam sends the browser back to /#steam=<one-time token> (or #steam-error=...).
+async function consumeSteamRedirect() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const token = params.get('steam');
+  const error = params.get('steam-error');
+  if (!token && !error) return null;
+  params.delete('steam');
+  params.delete('steam-error');
+  history.replaceState(null, '', params.toString() ? `#${params}` : location.pathname);
+  if (error) return { error };
+  try {
+    const res = await fetch(`/api/steam/session/${encodeURIComponent(token)}`);
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Sign-in failed.');
+    model.setSteamAccount(body);
+    return { signedIn: true };
+  } catch (err) {
+    return { error: err.message };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -590,8 +629,8 @@ const actions = {
   'watchlist-only'() {
     model.setFilters({ watchlistOnly: !model.filters.watchlistOnly });
   },
-  'steam-library'() {
-    openLibraryDialog();
+  account() {
+    openAccountDialog();
   },
   'reset-filters'() {
     model.resetFilters();
@@ -783,6 +822,7 @@ model.onChange((reason, id) => {
       if (btn && game) btn.outerHTML = watchButton(game, model.isWatched(game.id));
     }
   } else if (reason === 'owned') {
+    renderAccount();
     renderFilters();
     if (!id || state.view === 'calendar' || model.filters.hideOwned) renderMain();
     else patchCardOwnership(id);
@@ -837,7 +877,9 @@ function pollSoon() {
 
 async function start() {
   renderViewSwitch();
+  renderAccount();
   renderLoading('Loading releases');
+  const steamLogin = consumeSteamRedirect();
   try {
     const result = await model.load();
     lastLoad = Date.now();
@@ -848,6 +890,9 @@ async function start() {
   } catch (err) {
     renderLoading(err.message);
   }
+  // Coming back from Steam: show what the sign-in brought in.
+  const login = await steamLogin;
+  if (login) openAccountDialog({ error: login.error });
   pollStatus();
 }
 

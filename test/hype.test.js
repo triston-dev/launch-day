@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseReviewScores } from '../src/reviews.js';
-import { parseProfile } from '../src/library.js';
 import { hypeScore, hypeLevel, attention, criticScore } from '../public/js/rank.js';
 import { storeLinks } from '../public/js/catalog.js';
 
@@ -90,12 +89,4 @@ test('store buttons say where you own the game', () => {
   assert.equal(after.find((l) => l.key === 'steam').note, 'Owned on Steam');
   assert.equal(after.find((l) => l.key === 'ps').note, 'Owned on PS5');
   assert.equal(after.find((l) => l.key === 'nintendo').owned, undefined);
-});
-
-test('parseProfile accepts the usual ways people share a Steam profile', () => {
-  assert.deepEqual(parseProfile('76561197960287930'), { steamid: '76561197960287930' });
-  assert.deepEqual(parseProfile('https://steamcommunity.com/profiles/76561197960287930/'), { steamid: '76561197960287930' });
-  assert.deepEqual(parseProfile('https://steamcommunity.com/id/gaben'), { vanity: 'gaben' });
-  assert.deepEqual(parseProfile('gaben'), { vanity: 'gaben' });
-  assert.equal(parseProfile('not a profile!'), null);
 });

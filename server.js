@@ -6,7 +6,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { config } from './src/config.js';
 import { buildDataset } from './src/pipeline.js';
-import { fetchSteamLibrary, LibraryError } from './src/library.js';
+import { loginUrl, readAssertion, verifyAssertion, loadAccount, SteamAuthError } from './src/steamAuth.js';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -121,7 +121,7 @@ function statusPayload() {
     etag: state.etag,
     lastError: state.lastError,
     refreshHours: config.refreshHours,
-    steamImport: Boolean(config.steamApiKey),
+    steamOwnedLookup: Boolean(config.steamApiKey),
   };
 }
 
@@ -148,6 +148,56 @@ async function serveFile(req, res, file, cacheControl = 'no-cache') {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Sign in through Steam
+
+const steamSessions = new Map(); // one-time token -> { account, expires }
+
+function baseUrl(req) {
+  if (config.publicUrl) return config.publicUrl.replace(/\/$/, '');
+  const host = /^[a-z0-9.\-]+(:\d+)?$/i.test(req.headers.host || '') ? req.headers.host : `localhost:${config.port}`;
+  return `http://${host}`;
+}
+
+function cookie(req, name) {
+  const match = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function redirect(res, location, headers = {}) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store', ...headers });
+  res.end();
+}
+
+function startSteamLogin(req, res) {
+  // A one-time state value ties Steam's answer back to this browser.
+  const state = crypto.randomBytes(16).toString('hex');
+  redirect(res, loginUrl(baseUrl(req), state), {
+    'Set-Cookie': `ld_steam_state=${state}; Path=/auth/steam; Max-Age=600; HttpOnly; SameSite=Lax`,
+  });
+}
+
+async function finishSteamLogin(req, res, url) {
+  const clearState = { 'Set-Cookie': 'ld_steam_state=; Path=/auth/steam; Max-Age=0; HttpOnly; SameSite=Lax' };
+  try {
+    const expected = cookie(req, 'ld_steam_state');
+    if (!expected || url.searchParams.get('state') !== expected) {
+      throw new SteamAuthError('Sign-in took too long or started in another browser. Try again.');
+    }
+    const steamid = readAssertion(url.searchParams, baseUrl(req));
+    await verifyAssertion(url.searchParams);
+    const account = await loadAccount(steamid);
+    const token = crypto.randomBytes(24).toString('base64url');
+    steamSessions.set(token, { account, expires: Date.now() + 5 * 60 * 1000 });
+    for (const [key, value] of steamSessions) if (value.expires < Date.now()) steamSessions.delete(key);
+    return redirect(res, `/#steam=${token}`, clearState);
+  } catch (err) {
+    const message = err instanceof SteamAuthError ? err.message : 'Steam did not answer. Try again in a minute.';
+    if (!(err instanceof SteamAuthError)) console.error(`Steam sign-in failed (${err.name})`);
+    return redirect(res, `/#steam-error=${encodeURIComponent(message)}`, clearState);
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const route = url.pathname;
@@ -161,15 +211,14 @@ const server = http.createServer(async (req, res) => {
     refresh('requested from the app');
     return sendJson(res, 202, { started: true, ...statusPayload() });
   }
-  if (route === '/api/steam-library' && req.method === 'GET') {
-    try {
-      return sendJson(res, 200, await fetchSteamLibrary(url.searchParams.get('profile')));
-    } catch (err) {
-      if (err instanceof LibraryError) return sendJson(res, err.code === 'not-configured' ? 501 : 400, { error: err.message, code: err.code });
-      // Log the status only: the failing URL carries the API key.
-      console.error(`Steam library import failed (${err.status || err.name})`);
-      return sendJson(res, 502, { error: 'Steam did not answer. Try again in a minute.' });
-    }
+  if (route === '/auth/steam' && req.method === 'GET') return startSteamLogin(req, res);
+  if (route === '/auth/steam/return' && req.method === 'GET') return finishSteamLogin(req, res, url);
+  if (route.startsWith('/api/steam/session/') && req.method === 'GET') {
+    const token = route.slice('/api/steam/session/'.length);
+    const session = steamSessions.get(token);
+    steamSessions.delete(token); // single use
+    if (!session || session.expires < Date.now()) return sendJson(res, 404, { error: 'Sign-in expired. Try again.' });
+    return sendJson(res, 200, session.account);
   }
   if (VENDOR[route]) return serveFile(req, res, VENDOR[route], 'public, max-age=604800');
 

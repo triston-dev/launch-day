@@ -23,6 +23,7 @@ const paths = {
   sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
   flame: '<path d="M12 2.5c.9 3.4 5 5.6 5 10.8a5 5 0 0 1-10 0c0-2.5 1.2-4.2 2.5-5.3.2 1.7 1 2.9 2.3 3.1-.8-3-.4-5.9.2-8.6z" fill="currentColor" stroke="none"/>',
   thumb: '<path d="M7.5 10.5v9h-3v-9z"/><path d="M7.5 19.5h9.3a2 2 0 0 0 2-1.6l1.1-5.5a2 2 0 0 0-2-2.4h-4.4l.7-3.4a1.8 1.8 0 0 0-3.3-1.2l-3.4 5.1"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   library: '<path d="M4.5 4.5v15M9 4.5v15"/><path d="M13.2 5.3l3.9-1 3.6 14.6-3.9 1z"/>',
   deck: '<rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="7.5" cy="12" r="1.5"/><circle cx="16.5" cy="12" r="1.5"/>',

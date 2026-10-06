@@ -79,7 +79,7 @@ function extrasSection(title, subtitle, games, ctx, key) {
       <span class="count-pill">${games.length}</span>
     </header>
     <div class="card-grid card-grid--compact">
-      ${shown.map((g) => card(g, { watched: model.isWatched(g.id), owned: model.ownedLabel(g), showDate: false })).join('')}
+      ${shown.map((g) => card(g, { watched: model.isWatched(g.id), owned: model.ownedLabel(g), wishlisted: model.isWishlisted(g), showDate: false })).join('')}
     </div>
     ${
       ranked.length > shown.length

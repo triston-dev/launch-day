@@ -41,7 +41,9 @@ npm run build-data
 
 **Games you own.** Use "I own this" on any game's page to tick the platforms you own it on. The store buttons then read "Owned on PS5", "Owned on Steam" and so on, cards get an "Owned" tag, and "Hide games I own" drops them from the calendar. Ownership is stored in your browser.
 
-**Steam library import.** With a Steam Web API key configured (see below), "Import Steam library" marks every game in your Steam library as "Owned on Steam" in one step. Your profile's game details need to be public.
+**Sign in with Steam.** The button in the top bar uses Steam's official sign-in page, so your password goes to Steam and never to Launch Day. Once you're back, every game in your Steam library is marked "Owned on Steam", games on your Steam wishlist get a "Wishlisted" tag, and one click adds them to your watchlist. Press Sync in the account menu to pick up new purchases.
+
+This works the way SteamDB's sign-in does. Steam's login only says which account signed in; the server then reads that account's library through the Steam Web API with the server's own key. So whoever runs the server adds one free key once (see Configuration), and everyone who uses it just signs in. Without a key, sign-in still brings in your wishlist. Either way, your Steam profile's "Game details" need to be public.
 
 **Watchlist.** Star any game. The Watchlist chip narrows every view to starred games, and "Export .ics" downloads them as a calendar file for Google Calendar, Outlook or Apple Calendar. Each game page also has its own "Add to calendar" button.
 
@@ -68,7 +70,7 @@ Release data from Wikipedia is available under [CC BY-SA 4.0](https://creativeco
 
 ## Configuration
 
-All optional, set as environment variables:
+All optional. Copy `.env.example` to `.env` next to `package.json` and fill in what you need; the server reads it at startup. Real environment variables work too.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -77,21 +79,16 @@ All optional, set as environment variables:
 | `REFRESH_HOURS` | `6` | How often the server rebuilds the data in the background |
 | `STORE_COUNTRY` | `US` | Store region for Steam prices and search |
 | `USER_AGENT` | (set) | How the app identifies itself to Wikipedia and the stores |
-| `STEAM_API_KEY` | (none) | Enables the Steam library import. Get a free key at <https://steamcommunity.com/dev/apikey> |
+| `STEAM_API_KEY` | (none) | Lets Steam sign-in read libraries. Free at <https://steamcommunity.com/dev/apikey> (any domain name works for a local install) |
+| `PUBLIC_URL` | (from the request) | The address people reach the server at, if it's hosted behind HTTPS or a proxy. Steam sends people back here after sign-in |
 
-To start the server with a Steam key:
+For Steam sign-in with library reading, the whole setup is one line in `.env`:
 
-```bash
-STEAM_API_KEY=yourkey npm start
+```
+STEAM_API_KEY=your-key-here
 ```
 
-In PowerShell:
-
-```powershell
-$env:STEAM_API_KEY = "yourkey"; npm start
-```
-
-The key stays on your machine: the browser asks the local server, and only the server talks to Steam.
+The key never reaches the browser. `.env` is in `.gitignore`, so it won't be committed by accident.
 
 ## Project layout
 
@@ -106,7 +103,7 @@ src/
   gog.js             GOG catalog lookup
   hype.js            Wikipedia page views and Steam follower counts
   reviews.js         Critic scores from Wikipedia review tables
-  library.js         Optional Steam library import
+  steamAuth.js       Sign in through Steam, library and wishlist
   dates.js           Release date parsing
   platforms.js       Platform abbreviations
   text.js            Title normalisation and fuzzy matching
@@ -131,7 +128,8 @@ data/                Generated dataset and caches (safe to delete)
 - `GET /api/games`: the full dataset (gzip, ETag)
 - `GET /api/status`: whether a refresh is running and how far along it is
 - `POST /api/refresh`: start a refresh now (ignored if one ran in the last ten minutes)
-- `GET /api/steam-library?profile=<link or id>`: owned Steam app IDs (needs `STEAM_API_KEY`)
+- `GET /auth/steam`: starts Steam sign-in; Steam returns to `/auth/steam/return`
+- `GET /api/steam/session/<token>`: the signed-in account's library and wishlist, collected once after sign-in
 
 ## Limitations
 

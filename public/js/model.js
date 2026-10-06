@@ -42,8 +42,9 @@ export class Model {
     this.watchlist = new Set(storage.get('launchday.watchlist', []));
     // Ownership: platforms marked by hand per game, plus an imported Steam library.
     this.owned = storage.get('launchday.owned', {});
-    this.steamLibrary = storage.get('launchday.steamLibrary', null);
-    this.steamOwned = new Set(this.steamLibrary?.appids || []);
+    this.steamAccount = storage.get('launchday.steamAccount', null);
+    this.steamOwned = new Set(this.steamAccount?.appids || []);
+    this.steamWishlist = new Set(this.steamAccount?.wishlist || []);
     this.listeners = new Set();
   }
 
@@ -106,6 +107,12 @@ export class Model {
     return this.watchlist.has(id);
   }
 
+  addToWatchlist(ids) {
+    for (const id of ids) this.watchlist.add(id);
+    storage.set('launchday.watchlist', [...this.watchlist]);
+    this.emit('watchlist');
+  }
+
   watchedGames() {
     return this.games.filter((g) => this.watchlist.has(g.id));
   }
@@ -138,11 +145,17 @@ export class Model {
     this.emit('owned', id);
   }
 
-  setSteamLibrary(library) {
-    this.steamLibrary = library;
-    this.steamOwned = new Set(library?.appids || []);
-    storage.set('launchday.steamLibrary', library);
+  // The account from "Sign in through Steam": its library and wishlist.
+  setSteamAccount(account) {
+    this.steamAccount = account;
+    this.steamOwned = new Set(account?.appids || []);
+    this.steamWishlist = new Set(account?.wishlist || []);
+    storage.set('launchday.steamAccount', account);
     this.emit('owned');
+  }
+
+  isWishlisted(game) {
+    return Boolean(game.steam && this.steamWishlist.has(game.steam.appid));
   }
 
   matches(game) {

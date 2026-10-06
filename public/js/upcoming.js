@@ -136,7 +136,7 @@ export function renderUpcoming(root, ctx) {
       }
       const slice = group.games.slice(ii, ii + budget);
       html += `<template data-fill="${esc(group.key)}">${slice
-        .map((g) => card(g, { watched: model.isWatched(g.id), owned: model.ownedLabel(g), today }))
+        .map((g) => card(g, { watched: model.isWatched(g.id), owned: model.ownedLabel(g), wishlisted: model.isWishlisted(g), today }))
         .join('')}</template>`;
       budget -= slice.length;
       ii += slice.length;
